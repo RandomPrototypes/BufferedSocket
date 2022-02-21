@@ -268,7 +268,7 @@ int32_t BufferedSocket::readInt32()
     return *(int32_t*)&val;
 }
 
-u_int32_t BufferedSocket::readUInt32()
+uint32_t BufferedSocket::readUInt32()
 {
     unsigned char s[4];
     readNBytes((char*)s, 4);
@@ -281,7 +281,7 @@ int64_t BufferedSocket::readInt64()
     return *(int64_t*)&val;
 }
 
-u_int64_t BufferedSocket::readUInt64()
+uint64_t BufferedSocket::readUInt64()
 {
     unsigned char s[8];
     readNBytes((char*)s, 8);
@@ -290,10 +290,10 @@ u_int64_t BufferedSocket::readUInt64()
 
 bool BufferedSocket::sendInt32(int32_t val)
 {
-    return sendUInt32(*(u_int32_t*)&val);
+    return sendUInt32(*(uint32_t*)&val);
 }
 
-bool BufferedSocket::sendUInt32(u_int32_t val)
+bool BufferedSocket::sendUInt32(uint32_t val)
 {
     unsigned char s[4];
     DataPacket::convertUInt32ToBytes(val, s);
@@ -301,9 +301,9 @@ bool BufferedSocket::sendUInt32(u_int32_t val)
 }
 bool BufferedSocket::sendInt64(int64_t val)
 {
-    return sendUInt64(*(u_int64_t*)&val);
+    return sendUInt64(*(uint64_t*)&val);
 }
-bool BufferedSocket::sendUInt64(u_int64_t val)
+bool BufferedSocket::sendUInt64(uint64_t val)
 {
     unsigned char s[8];
     DataPacket::convertUInt64ToBytes(val, s);
@@ -354,10 +354,10 @@ uint64_t DataPacket::convertToUInt64(const unsigned char* ptr)
 
 void DataPacket::convertInt32ToBytes(int32_t val, unsigned char* dst)
 {
-    convertUInt32ToBytes(*(u_int32_t*)&val, dst);
+    convertUInt32ToBytes(*(uint32_t*)&val, dst);
 }
 
-void DataPacket::convertUInt32ToBytes(u_int32_t val, unsigned char* dst)
+void DataPacket::convertUInt32ToBytes(uint32_t val, unsigned char* dst)
 {
     dst[0] = (val >> 24) & 0xFF;
     dst[1] = (val >> 16) & 0xFF;
@@ -367,10 +367,10 @@ void DataPacket::convertUInt32ToBytes(u_int32_t val, unsigned char* dst)
 
 void DataPacket::convertInt64ToBytes(int64_t val, unsigned char* dst)
 {
-    convertUInt64ToBytes(*(u_int64_t*)&val, dst);
+    convertUInt64ToBytes(*(uint64_t*)&val, dst);
 }
 
-void DataPacket::convertUInt64ToBytes(u_int64_t val, unsigned char* dst)
+void DataPacket::convertUInt64ToBytes(uint64_t val, unsigned char* dst)
 {
     dst[0] = (val >> 56) & 0xFF;
     dst[1] = (val >> 48) & 0xFF;
@@ -384,9 +384,9 @@ void DataPacket::convertUInt64ToBytes(u_int64_t val, unsigned char* dst)
 
 bool DataPacket::readInt32(int32_t *out)
 {
-    return readUInt32((u_int32_t*)out);
+    return readUInt32((uint32_t*)out);
 }
-bool DataPacket::readUInt32(u_int32_t *out)
+bool DataPacket::readUInt32(uint32_t *out)
 {
     if(offset + 4 > data.size())
         return false;
@@ -398,10 +398,10 @@ bool DataPacket::readUInt32(u_int32_t *out)
 
 bool DataPacket::readInt64(int64_t *out)
 {
-    return readUInt64((u_int64_t*)out);
+    return readUInt64((uint64_t*)out);
 }
 
-bool DataPacket::readUInt64(u_int64_t *out)
+bool DataPacket::readUInt64(uint64_t *out)
 {
     if(offset + 8 > data.size())
         return false;
@@ -413,9 +413,9 @@ bool DataPacket::readUInt64(u_int64_t *out)
 
 void DataPacket::putInt32(int32_t val)
 {
-    putUInt32(*(u_int32_t*)&val);
+    putUInt32(*(uint32_t*)&val);
 }
-void DataPacket::putUInt32(u_int32_t val)
+void DataPacket::putUInt32(uint32_t val)
 {
     unsigned char buf[4];
     convertUInt32ToBytes(val, buf);
@@ -423,9 +423,9 @@ void DataPacket::putUInt32(u_int32_t val)
 }
 void DataPacket::putInt64(int64_t val)
 {
-    putUInt64(*(u_int64_t*)&val);
+    putUInt64(*(uint64_t*)&val);
 }
-void DataPacket::putUInt64(u_int64_t val)
+void DataPacket::putUInt64(uint64_t val)
 {
     unsigned char buf[8];
     convertUInt64ToBytes(val, buf);
