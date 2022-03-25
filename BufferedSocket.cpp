@@ -2,7 +2,7 @@
 #include <string.h>
 #include "BufferedSocket.h"
 
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS_SOCK)
 WSADATA BufferedSocket::wsaData;
 #endif
 
@@ -37,14 +37,14 @@ void BufferedSocket::setBufferSize(int size)
 
 void BufferedSocket::startup()
 {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS_SOCK)
     WSAStartup(MAKEWORD(2,2),&wsaData);
 #endif
 }
 
 void BufferedSocket::cleanup()
 {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS_SOCK)
     WSACleanup();
 #endif
 }
@@ -64,7 +64,7 @@ void BufferedSocket::closeSockAndThrowError(std::string errorMsg)
 
 bool BufferedSocket::connect(std::string address, int port)
 {
-    #if defined(USE_WINDOWS)
+    #if defined(USE_WINDOWS_SOCK)
     sock=socket(PF_INET,SOCK_STREAM,IPPROTO_TCP);
     sockaddr_in sockAddr;
     sockAddr.sin_family=AF_INET;
@@ -75,7 +75,7 @@ bool BufferedSocket::connect(std::string address, int port)
         closeSockAndThrowError("Failed to connect.");
         return false;
     }
-    #elif defined(USE_LINUX)
+    #elif defined(USE_BERKELEY_SOCK)
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock < 0) {
         onError("socket creation failed.");
@@ -100,9 +100,9 @@ bool BufferedSocket::connect(std::string address, int port)
 
 void BufferedSocket::disconnect()
 {
-#if defined(USE_WINDOWS)
+#if defined(USE_WINDOWS_SOCK)
     closesocket(sock);
-#elif defined(USE_LINUX)
+#elif defined(USE_BERKELEY_SOCK)
     close(sock);
 #endif
     sock = -1;

@@ -1,10 +1,10 @@
 #pragma once
 
-#if defined(_WIN32) || defined(WIN32)
-    #define USE_WINDOWS
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+    #define USE_WINDOWS_SOCK
     #include <WinSock2.h>
-#elif defined(linux) || defined(__linux__)
-    #define USE_LINUX
+#elif defined(linux) || defined(__linux__) || defined(__APPLE__) || defined(__unix)
+    #define USE_BERKELEY_SOCK
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -99,10 +99,10 @@ private:
     int bufferStartPos;
     char *buffer;
 
-    #if defined(USE_WINDOWS)
+    #if defined(USE_WINDOWS_SOCK)
         SOCKET sock;
         static WSADATA wsaData;
-    #elif defined(USE_LINUX)
+    #elif defined(USE_BERKELEY_SOCK)
         int sock;
     #endif
 };
