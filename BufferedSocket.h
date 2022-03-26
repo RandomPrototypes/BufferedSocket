@@ -2,8 +2,7 @@
 
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
     #define USE_WINDOWS_SOCK
-    #define NOMINMAX
-    #include <windows.h>
+    #include <WinSock2.h>
 #elif defined(linux) || defined(__linux__) || defined(__APPLE__) || defined(__unix)
     #define USE_BERKELEY_SOCK
     #include <sys/types.h>
@@ -11,6 +10,7 @@
     #include <netinet/in.h>
     #include <arpa/inet.h>
     #include <netdb.h>
+    #include <unistd.h>
 #endif
 
 #include <string>
