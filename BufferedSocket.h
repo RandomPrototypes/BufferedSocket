@@ -2,7 +2,9 @@
 
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
     #define USE_WINDOWS_SOCK
-    #define NOMINMAX
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
     #include <windows.h>
 #elif defined(linux) || defined(__linux__) || defined(__APPLE__) || defined(__unix)
     #define USE_BERKELEY_SOCK
