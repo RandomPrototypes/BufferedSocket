@@ -1,4 +1,4 @@
-#include <unistd.h>
+//#include <unistd.h>
 #include <string.h>
 #include "BufferedSocket.h"
 
@@ -56,7 +56,11 @@ void BufferedSocket::onError(std::string errorMsg)
 
 void BufferedSocket::closeSockAndThrowError(std::string errorMsg)
 {
+#if defined(USE_WINDOWS_SOCK)
+    closesocket(sock);
+#else
     close(sock);
+#endif
     sock = -1;
     onError(errorMsg);
 }
