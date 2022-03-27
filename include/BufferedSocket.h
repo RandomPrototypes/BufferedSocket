@@ -35,11 +35,18 @@
 #include <vector>
 #include <stdint.h>
 
+class DataPacketPrivateData;
+
 class BUFSOCK_EXPORTS DataPacket
 {
 public:
     DataPacket();
     ~DataPacket();
+    DataPacket(const DataPacket& other);
+    DataPacket& operator=(const DataPacket& other);
+
+    void copyFrom(const DataPacket& other);
+
     int size();
     const unsigned char *getRawPtr();
     void rewind();
@@ -67,7 +74,7 @@ public:
     void putNBytes(const unsigned char* buf, int N);
     void putNBytes(const char* buf, int N);
 private:
-    std::vector<unsigned char> data;
+    DataPacketPrivateData *privateData;//store data that can not pass through the dll
     int offset;
 };
 

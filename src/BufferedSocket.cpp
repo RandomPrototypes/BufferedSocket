@@ -313,13 +313,40 @@ bool BufferedSocket::sendUInt64(uint64_t val)
     return sendNBytes((char*)s, 8) == 8;
 }
 
+
+class DataPacketPrivateData
+{
+public:
+    std::vector<unsigned char> data;
+};
+
 DataPacket::DataPacket()
 {
     offset = 0;
+    privateData = new DataPacketPrivateData();
 }
 
 DataPacket::~DataPacket()
 {
+    delete privateData;
+}
+
+DataPacket::DataPacket(const DataPacket& other)
+{
+    privateData = new DataPacketPrivateData();
+    copyFrom(other);
+}
+
+DataPacket& DataPacket::operator=(const DataPacket& other)
+{
+    copyFrom(other);
+    return *this;
+}
+
+void DataPacket::copyFrom(const DataPacket& other)
+{
+    offset = other.offset;
+    *privateData = *(other.privateData);
 }
 
 void DataPacket::rewind()
@@ -395,10 +422,10 @@ bool DataPacket::readInt32(int32_t *out)
 }
 bool DataPacket::readUInt32(uint32_t *out)
 {
-    if(offset + 4 > data.size())
+    if(offset + 4 > privateData->data.size())
         return false;
 
-    *out = convertToUInt32((unsigned char*)&data[offset]);
+    *out = convertToUInt32((unsigned char*)&privateData->data[offset]);
     offset += 4;
     return true;
 }
@@ -410,10 +437,10 @@ bool DataPacket::readInt64(int64_t *out)
 
 bool DataPacket::readUInt64(uint64_t *out)
 {
-    if(offset + 8 > data.size())
+    if(offset + 8 > privateData->data.size())
         return false;
 
-    *out = convertToUInt64((unsigned char*)&data[offset]);
+    *out = convertToUInt64((unsigned char*)&privateData->data[offset]);
     offset += 8;
     return true;
 }
@@ -441,10 +468,10 @@ void DataPacket::putUInt64(uint64_t val)
 
 void DataPacket::putNBytes(const unsigned char* buf, int N)
 {
-    int start = data.size();
-    data.resize(start+N);
+    int start = privateData->data.size();
+    privateData->data.resize(start+N);
     for(int i = 0; i < N; i++)
-        data[start+i] = buf[i];
+        privateData->data[start+i] = buf[i];
 }
 
 void DataPacket::putNBytes(const char* buf, int N)
@@ -454,10 +481,10 @@ void DataPacket::putNBytes(const char* buf, int N)
 
 int DataPacket::size()
 {
-    return data.size();
+    return privateData->data.size();
 }
 
 const unsigned char *DataPacket::getRawPtr()
 {
-    return &data[0];
+    return &privateData->data[0];
 }
