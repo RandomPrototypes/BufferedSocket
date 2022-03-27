@@ -1,5 +1,5 @@
 #include <string.h>
-#include "BufferedSocket.h"
+#include <BufferedSocket.h>
 
 #if defined(USE_WINDOWS_SOCK)
 WSADATA BufferedSocket::wsaData;
@@ -166,7 +166,7 @@ void BufferedSocket::removeAlreadyReadData()
     }
 }
 
-std::vector<char> BufferedSocket::readUntilStr(const char *str, int length)
+/*std::vector<char> BufferedSocket::readUntilStr(const char *str, int length)
 {
     std::vector<char> result;
     while(true)
@@ -225,7 +225,7 @@ std::vector<char> BufferedSocket::readUntilStr(const char *str, int length)
     }
 
     return std::vector<char>();
-}
+}*/
 
 int BufferedSocket::readNBytes(char *outputBuf, int N)
 {
@@ -316,6 +316,10 @@ bool BufferedSocket::sendUInt64(uint64_t val)
 DataPacket::DataPacket()
 {
     offset = 0;
+}
+
+DataPacket::~DataPacket()
+{
 }
 
 void DataPacket::rewind()

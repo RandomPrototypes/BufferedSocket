@@ -1,5 +1,16 @@
 #pragma once
 
+#ifndef BUFSOCK_EXPORTS
+# if (defined _WIN32 || defined WINCE || defined __CYGWIN__) && defined(BUFFEREDSOCKET_EXPORTS)
+#   define BUFSOCK_EXPORTS __declspec(dllexport)
+# elif defined __GNUC__ && __GNUC__ >= 4 && (defined(BUFFEREDSOCKET_EXPORTS) || defined(__APPLE__))
+#   define BUFSOCK_EXPORTS __attribute__ ((visibility ("default")))
+# else
+# define BUFSOCK_EXPORTS
+# endif
+#endif
+
+
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
     #define USE_WINDOWS_SOCK
     #ifndef NOMINMAX
@@ -20,13 +31,11 @@
 #include <vector>
 #include <stdint.h>
 
-class DataPacket
+class BUFSOCK_EXPORTS DataPacket
 {
 public:
-    std::vector<unsigned char> data;
-    int offset;
-
     DataPacket();
+    ~DataPacket();
     int size();
     const unsigned char *getRawPtr();
     void rewind();
@@ -53,9 +62,12 @@ public:
 
     void putNBytes(const unsigned char* buf, int N);
     void putNBytes(const char* buf, int N);
+private:
+    std::vector<unsigned char> data;
+    int offset;
 };
 
-class BufferedSocket
+class BUFSOCK_EXPORTS BufferedSocket
 {
 public:
     BufferedSocket();
@@ -90,7 +102,7 @@ public:
     bool sendInt64(int64_t val);
     bool sendUInt64(uint64_t val);
 
-    std::vector<char> readUntilStr(const char *str, int length);
+    //std::vector<char> readUntilStr(const char *str, int length);
 
     void closeSockAndThrowError(std::string errorMsg);
 
