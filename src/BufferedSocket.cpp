@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdio.h>
-#include <BufferedSocket.h>
-#include <DataPacket.h>
+#include <BufferedSocket/BufferedSocket.h>
+#include <BufferedSocket/DataPacket.h>
 
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
     #define USE_WINDOWS_SOCK

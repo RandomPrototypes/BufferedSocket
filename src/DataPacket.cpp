@@ -1,6 +1,6 @@
 #include <string.h>
 #include <stdio.h>
-#include <DataPacket.h>
+#include <BufferedSocket/DataPacket.h>
 
 class DataPacketImpl : public DataPacket
 {

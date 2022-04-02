@@ -3,7 +3,7 @@
 #include <vector>
 #include <stdint.h>
 #include <memory>
-#include <BufferedSocketDefs.h>
+#include <BufferedSocket/BufferedSocketDefs.h>
 
 class BUFSOCK_EXPORTS DataPacket
 {

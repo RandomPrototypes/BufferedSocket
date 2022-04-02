@@ -9,9 +9,9 @@ set(LIB_SRC
 )
 
 set(LIB_INCLUDE
-	include/BufferedSocket.h
-	include/DataPacket.h
-	include/BufferedSocketDefs.h
+	include/BufferedSocket/BufferedSocket.h
+	include/BufferedSocket/DataPacket.h
+	include/BufferedSocket/BufferedSocketDefs.h
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
