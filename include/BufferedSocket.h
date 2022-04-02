@@ -1,135 +1,58 @@
 #pragma once
 
-#ifndef BUFSOCK_EXPORTS
-# if (defined _WIN32 || defined WINCE || defined __CYGWIN__)
-#   if defined(BUFFEREDSOCKET_EXPORTS)
-#       define BUFSOCK_EXPORTS __declspec(dllexport)
-#   else
-#       define BUFSOCK_EXPORTS __declspec(dllimport)
-#   endif
-# elif defined __GNUC__ && __GNUC__ >= 4 && (defined(BUFFEREDSOCKET_EXPORTS) || defined(__APPLE__))
-#   define BUFSOCK_EXPORTS __attribute__ ((visibility ("default")))
-# else
-#   define BUFSOCK_EXPORTS
-# endif
-#endif
-
-
-#if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
-    #define USE_WINDOWS_SOCK
-    #ifndef NOMINMAX
-        #define NOMINMAX
-    #endif
-    #include <windows.h>
-#elif defined(linux) || defined(__linux__) || defined(__APPLE__) || defined(__unix)
-    #define USE_BERKELEY_SOCK
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    #include <unistd.h>
-#endif
-
-#include <string>
 #include <vector>
 #include <stdint.h>
-
-class DataPacketPrivateData;
-
-class BUFSOCK_EXPORTS DataPacket
-{
-public:
-    DataPacket();
-    ~DataPacket();
-    DataPacket(const DataPacket& other);
-    DataPacket& operator=(const DataPacket& other);
-
-    void copyFrom(const DataPacket& other);
-
-    int size();
-    const unsigned char *getRawPtr();
-    void rewind();
-
-    static int32_t convertToInt32(const unsigned char* ptr);
-    static uint32_t convertToUInt32(const unsigned char* ptr);
-    static int64_t convertToInt64(const unsigned char* ptr);
-    static uint64_t convertToUInt64(const unsigned char* ptr);
-
-    static void convertInt32ToBytes(int32_t val, unsigned char* dst);
-    static void convertUInt32ToBytes(uint32_t val, unsigned char* dst);
-    static void convertInt64ToBytes(int64_t val, unsigned char* dst);
-    static void convertUInt64ToBytes(uint64_t val, unsigned char* dst);
-
-    bool readInt32(int32_t *out);
-    bool readUInt32(uint32_t *out);
-    bool readInt64(int64_t *out);
-    bool readUInt64(uint64_t *out);
-
-    void putInt32(int32_t val);
-    void putUInt32(uint32_t val);
-    void putInt64(int64_t val);
-    void putUInt64(uint64_t val);
-
-    void putNBytes(const unsigned char* buf, int N);
-    void putNBytes(const char* buf, int N);
-private:
-    DataPacketPrivateData *privateData;//store data that can not pass through the dll
-    int offset;
-};
+#include <memory>
+#include <BufferedSocketDefs.h>
 
 class BUFSOCK_EXPORTS BufferedSocket
 {
 public:
-    BufferedSocket();
-    ~BufferedSocket();
-    BufferedSocket(const BufferedSocket&) = delete;
-    void setBufferSize(int size);
+    virtual ~BufferedSocket();
 
-    static void startup();
-    static void cleanup();
+    virtual void setBufferSize(int size) = 0;
 
-    bool connect(std::string address, int port);
-    void disconnect();
+    virtual bool connect(const char *address, int port) = 0;
+    virtual void disconnect() = 0;
 
-    bool isConnected() const;
+    virtual bool isConnected() const = 0;
 
-    int readData(char *buf, int bufSize);
+    virtual int readData(char *buf, int bufSize) = 0;
 
-    int sendData(const char *data, int length);
+    virtual int sendData(const char *data, int length) = 0;
 
-    int readNBytes(char *buffer, int N);
+    virtual int readNBytes(char *buffer, int N) = 0;
 
-    int sendNBytes(const char *buffer, int N);
-    int sendNBytes(const unsigned char *buffer, int N);
+    virtual int sendNBytes(const char *buffer, int N) = 0;
+    virtual int sendNBytes(const unsigned char *buffer, int N) = 0;
 
-    int32_t readInt32();
-    uint32_t readUInt32();
-    int64_t readInt64();
-    uint64_t readUInt64();
+    virtual int32_t readInt32() = 0;
+    virtual uint32_t readUInt32() = 0;
+    virtual int64_t readInt64() = 0;
+    virtual uint64_t readUInt64() = 0;
 
-    bool sendInt32(int32_t val);
-    bool sendUInt32(uint32_t val);
-    bool sendInt64(int64_t val);
-    bool sendUInt64(uint64_t val);
+    virtual bool sendInt32(int32_t val) = 0;
+    virtual bool sendUInt32(uint32_t val) = 0;
+    virtual bool sendInt64(int64_t val) = 0;
+    virtual bool sendUInt64(uint64_t val) = 0;
 
-    //std::vector<char> readUntilStr(const char *str, int length);
+    //virtual std::vector<char> readUntilStr(const char *str, int length);
 
-    void closeSockAndThrowError(std::string errorMsg);
+    virtual void closeSockAndThrowError(const char *errorMsg) = 0;
 
-    void onError(std::string errorMsg);
-private:
-    void removeAlreadyReadData();
-    
-    int bufferSize;
-    int bufferFilledSize;
-    int bufferStartPos;
-    char *buffer;
-
-    #if defined(USE_WINDOWS_SOCK)
-        SOCKET sock;
-        static WSADATA wsaData;
-    #elif defined(USE_BERKELEY_SOCK)
-        int sock;
-    #endif
+    virtual void onError(const char *errorMsg) = 0;
 };
+
+extern "C"
+{
+	BUFSOCK_EXPORTS void BufferedSocketStartup();
+	BUFSOCK_EXPORTS void BufferedSocketCleanup();
+	
+	BUFSOCK_EXPORTS BufferedSocket *createBufferedSocketRawPtr();
+	BUFSOCK_EXPORTS void deleteBufferedSocketRawPtr(BufferedSocket *bufSock);
+}
+
+inline std::shared_ptr<BufferedSocket> createBufferedSocket()
+{
+	return std::shared_ptr<BufferedSocket>(createBufferedSocketRawPtr(), deleteBufferedSocketRawPtr);
+}

@@ -3,9 +3,20 @@ cmake_minimum_required(VERSION 3.16)
 project(BufferedSocket VERSION 0.1)
 set(CMAKE_CXX_STANDARD 11)
 
+set(LIB_SRC
+	src/BufferedSocket.cpp
+	src/DataPacket.cpp
+)
+
+set(LIB_INCLUDE
+	include/BufferedSocket.h
+	include/DataPacket.h
+	include/BufferedSocketDefs.h
+)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(BufferedSocket SHARED src/BufferedSocket.cpp include/BufferedSocket.h)
+add_library(BufferedSocket SHARED ${LIB_SRC} ${LIB_INCLUDE})
 target_compile_definitions(BufferedSocket PRIVATE "BUFFEREDSOCKET_EXPORTS")
 set_target_properties(BufferedSocket PROPERTIES VERSION ${PROJECT_VERSION})
 

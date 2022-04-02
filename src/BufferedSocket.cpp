@@ -1,22 +1,131 @@
 #include <string.h>
+#include <stdio.h>
 #include <BufferedSocket.h>
+#include <DataPacket.h>
 
-#if defined(USE_WINDOWS_SOCK)
-WSADATA BufferedSocket::wsaData;
+#if defined(_WIN32) || defined(WIN32) || defined(_WIN64)
+    #define USE_WINDOWS_SOCK
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <windows.h>
+#elif defined(linux) || defined(__linux__) || defined(__APPLE__) || defined(__unix)
+    #define USE_BERKELEY_SOCK
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <netdb.h>
+    #include <unistd.h>
 #endif
 
-BufferedSocket::BufferedSocket()
+bool isBufferedSocketInitialized = false;
+#if defined(USE_WINDOWS_SOCK)
+WSADATA wsaData;
+#endif
+
+class BufferedSocketImpl : public BufferedSocket
 {
-    buffer = NULL;
-    setBufferSize(8*1024);
+public:
+    BufferedSocketImpl();
+    virtual ~BufferedSocketImpl();
+
+    virtual void setBufferSize(int size);
+
+    virtual bool connect(const char *address, int port);
+    virtual void disconnect();
+
+    virtual bool isConnected() const;
+
+    virtual int readData(char *buf, int bufSize);
+
+    virtual int sendData(const char *data, int length);
+
+    virtual int readNBytes(char *buffer, int N);
+
+    virtual int sendNBytes(const char *buffer, int N);
+    virtual int sendNBytes(const unsigned char *buffer, int N);
+
+    virtual int32_t readInt32();
+    virtual uint32_t readUInt32();
+    virtual int64_t readInt64();
+    virtual uint64_t readUInt64();
+
+    virtual bool sendInt32(int32_t val);
+    virtual bool sendUInt32(uint32_t val);
+    virtual bool sendInt64(int64_t val);
+    virtual bool sendUInt64(uint64_t val);
+
+    //virtual std::vector<char> readUntilStr(const char *str, int length);
+
+    virtual void closeSockAndThrowError(const char *errorMsg);
+
+    virtual void onError(const char *errorMsg);
+private:
+    void removeAlreadyReadData();
+    
+    int bufferSize;
+    int bufferFilledSize;
+    int bufferStartPos;
+    char *buffer;
+
+    #if defined(USE_WINDOWS_SOCK)
+        SOCKET sock;
+        static WSADATA wsaData;
+    #elif defined(USE_BERKELEY_SOCK)
+        int sock;
+    #endif
+};
+
+extern "C"
+{
+	void BufferedSocketStartup()
+	{
+		if(!isBufferedSocketInitialized) {
+			#if defined(USE_WINDOWS_SOCK)
+			WSAStartup(MAKEWORD(2,2),&wsaData);
+			#endif
+			isBufferedSocketInitialized = true;
+		}
+	}
+	void BufferedSocketCleanup()
+	{
+		if(isBufferedSocketInitialized) {
+			#if defined(USE_WINDOWS_SOCK)
+			WSACleanup();
+			#endif
+			isBufferedSocketInitialized = false;
+		}
+	}
+	
+	BufferedSocket *createBufferedSocketRawPtr()
+	{
+		return new BufferedSocketImpl();
+	}
+	
+	void deleteBufferedSocketRawPtr(BufferedSocket *bufSock)
+	{
+		delete bufSock;
+	}
 }
 
 BufferedSocket::~BufferedSocket()
 {
+}
+
+BufferedSocketImpl::BufferedSocketImpl()
+{
+	BufferedSocketStartup();
+    buffer = NULL;
+    setBufferSize(8*1024);
+}
+
+BufferedSocketImpl::~BufferedSocketImpl()
+{
     delete [] buffer;
 }
 
-void BufferedSocket::setBufferSize(int size)
+void BufferedSocketImpl::setBufferSize(int size)
 {
     if(buffer != NULL)
     {
@@ -34,26 +143,12 @@ void BufferedSocket::setBufferSize(int size)
     bufferStartPos = 0;
 }
 
-void BufferedSocket::startup()
+void BufferedSocketImpl::onError(const char *errorMsg)
 {
-#if defined(USE_WINDOWS_SOCK)
-    WSAStartup(MAKEWORD(2,2),&wsaData);
-#endif
+    printf("%s\n", errorMsg);
 }
 
-void BufferedSocket::cleanup()
-{
-#if defined(USE_WINDOWS_SOCK)
-    WSACleanup();
-#endif
-}
-
-void BufferedSocket::onError(std::string errorMsg)
-{
-    printf("%s\n", errorMsg.c_str());
-}
-
-void BufferedSocket::closeSockAndThrowError(std::string errorMsg)
+void BufferedSocketImpl::closeSockAndThrowError(const char *errorMsg)
 {
 #if defined(USE_WINDOWS_SOCK)
     closesocket(sock);
@@ -65,13 +160,13 @@ void BufferedSocket::closeSockAndThrowError(std::string errorMsg)
 }
 
 
-bool BufferedSocket::connect(std::string address, int port)
+bool BufferedSocketImpl::connect(const char *address, int port)
 {
     #if defined(USE_WINDOWS_SOCK)
     sock=socket(PF_INET,SOCK_STREAM,IPPROTO_TCP);
     sockaddr_in sockAddr;
     sockAddr.sin_family=AF_INET;
-    sockAddr.sin_addr.S_un.S_addr=inet_addr(address.c_str());
+    sockAddr.sin_addr.S_un.S_addr=inet_addr(address);
     sockAddr.sin_port=htons(port);
     if(::connect(sock,(SOCKADDR*)&sockAddr,sizeof(SOCKADDR)) < 0)
     {
@@ -88,7 +183,7 @@ bool BufferedSocket::connect(std::string address, int port)
     struct sockaddr_in sad;
     memset(&sad, 0, sizeof(sad));
     sad.sin_family = AF_INET;
-    sad.sin_addr.s_addr = inet_addr(address.c_str());
+    sad.sin_addr.s_addr = inet_addr(address);
     sad.sin_port = htons(port);
     
     if (::connect(sock, (struct sockaddr *) &sad, sizeof(sad)) < 0)
@@ -101,7 +196,7 @@ bool BufferedSocket::connect(std::string address, int port)
     return true;
 }
 
-void BufferedSocket::disconnect()
+void BufferedSocketImpl::disconnect()
 {
 #if defined(USE_WINDOWS_SOCK)
     closesocket(sock);
@@ -111,12 +206,12 @@ void BufferedSocket::disconnect()
     sock = -1;
 }
 
-bool BufferedSocket::isConnected() const
+bool BufferedSocketImpl::isConnected() const
 {
     return sock >= 0;
 }
 
-int BufferedSocket::readData(char *outputBuf, int outputBufSize)
+int BufferedSocketImpl::readData(char *outputBuf, int outputBufSize)
 {
     if(bufferFilledSize == 0)
     {
@@ -149,7 +244,7 @@ int BufferedSocket::readData(char *outputBuf, int outputBufSize)
     return sizeRead;
 }
 
-int BufferedSocket::sendData(const char *data, int length)
+int BufferedSocketImpl::sendData(const char *data, int length)
 {
     int sizeSent = send(sock, data, length, 0);
     if(sizeSent != length)
@@ -157,7 +252,7 @@ int BufferedSocket::sendData(const char *data, int length)
     return sizeSent;
 }
 
-void BufferedSocket::removeAlreadyReadData()
+void BufferedSocketImpl::removeAlreadyReadData()
 {
     if(bufferStartPos > 0)
     {
@@ -227,7 +322,7 @@ void BufferedSocket::removeAlreadyReadData()
     return std::vector<char>();
 }*/
 
-int BufferedSocket::readNBytes(char *outputBuf, int N)
+int BufferedSocketImpl::readNBytes(char *outputBuf, int N)
 {
     int total = 0;
     while(total < N)
@@ -240,7 +335,7 @@ int BufferedSocket::readNBytes(char *outputBuf, int N)
     return total;
 }
 
-int BufferedSocket::sendNBytes(const char *buffer, int N)
+int BufferedSocketImpl::sendNBytes(const char *buffer, int N)
 {
     int total = 0;
     while(total < N)
@@ -258,233 +353,57 @@ int BufferedSocket::sendNBytes(const char *buffer, int N)
     return total;
 }
 
-int BufferedSocket::sendNBytes(const unsigned char *buffer, int N)
+int BufferedSocketImpl::sendNBytes(const unsigned char *buffer, int N)
 {
     return sendNBytes(reinterpret_cast<const char*>(buffer), N);
 }
 
 
 
-int32_t BufferedSocket::readInt32()
+int32_t BufferedSocketImpl::readInt32()
 {
     uint32_t val = readUInt32();
     return *(int32_t*)&val;
 }
 
-uint32_t BufferedSocket::readUInt32()
+uint32_t BufferedSocketImpl::readUInt32()
 {
     unsigned char s[4];
     readNBytes((char*)s, 4);
-    return DataPacket::convertToUInt32(s);;
+    return convertBytesToUInt32(s);
 }
 
-int64_t BufferedSocket::readInt64()
+int64_t BufferedSocketImpl::readInt64()
 {
     uint64_t val = readUInt64();
     return *(int64_t*)&val;
 }
 
-uint64_t BufferedSocket::readUInt64()
+uint64_t BufferedSocketImpl::readUInt64()
 {
     unsigned char s[8];
     readNBytes((char*)s, 8);
-    return DataPacket::convertToUInt64(s);
+    return convertBytesToUInt64(s);
 }
 
-bool BufferedSocket::sendInt32(int32_t val)
+bool BufferedSocketImpl::sendInt32(int32_t val)
 {
     return sendUInt32(*(uint32_t*)&val);
 }
 
-bool BufferedSocket::sendUInt32(uint32_t val)
+bool BufferedSocketImpl::sendUInt32(uint32_t val)
 {
     unsigned char s[4];
-    DataPacket::convertUInt32ToBytes(val, s);
+    convertUInt32ToBytes(val, s);
     return sendNBytes((char*)s, 4) == 4;
 }
-bool BufferedSocket::sendInt64(int64_t val)
+bool BufferedSocketImpl::sendInt64(int64_t val)
 {
     return sendUInt64(*(uint64_t*)&val);
 }
-bool BufferedSocket::sendUInt64(uint64_t val)
+bool BufferedSocketImpl::sendUInt64(uint64_t val)
 {
     unsigned char s[8];
-    DataPacket::convertUInt64ToBytes(val, s);
+    convertUInt64ToBytes(val, s);
     return sendNBytes((char*)s, 8) == 8;
-}
-
-
-class DataPacketPrivateData
-{
-public:
-    std::vector<unsigned char> data;
-};
-
-DataPacket::DataPacket()
-{
-    offset = 0;
-    privateData = new DataPacketPrivateData();
-}
-
-DataPacket::~DataPacket()
-{
-    delete privateData;
-}
-
-DataPacket::DataPacket(const DataPacket& other)
-{
-    privateData = new DataPacketPrivateData();
-    copyFrom(other);
-}
-
-DataPacket& DataPacket::operator=(const DataPacket& other)
-{
-    copyFrom(other);
-    return *this;
-}
-
-void DataPacket::copyFrom(const DataPacket& other)
-{
-    offset = other.offset;
-    *privateData = *(other.privateData);
-}
-
-void DataPacket::rewind()
-{
-    offset = 0;
-}
-
-int32_t DataPacket::convertToInt32(const unsigned char* ptr)
-{
-    uint32_t val = convertToUInt32(ptr);
-    return *(int32_t*)&val;
-}
-
-uint32_t DataPacket::convertToUInt32(const unsigned char* ptr)
-{
-    return ((uint32_t) ptr[3] << 0)
-         | ((uint32_t) ptr[2] << 8)
-         | ((uint32_t) ptr[1] << 16)
-         | ((uint32_t) ptr[0] << 24);
-}
-
-int64_t DataPacket::convertToInt64(const unsigned char* ptr)
-{
-    uint64_t val = convertToUInt64(ptr);
-    return *(int64_t*)&val;
-}
-
-uint64_t DataPacket::convertToUInt64(const unsigned char* ptr)
-{
-    return ((uint64_t) ptr[7] << 0)
-         | ((uint64_t) ptr[6] << 8)
-         | ((uint64_t) ptr[5] << 16)
-         | ((uint64_t) ptr[4] << 24)
-         | ((uint64_t) ptr[3] << 32)
-         | ((uint64_t) ptr[2] << 40)
-         | ((uint64_t) ptr[1] << 48)
-         | ((uint64_t) ptr[0] << 56);
-}
-
-void DataPacket::convertInt32ToBytes(int32_t val, unsigned char* dst)
-{
-    convertUInt32ToBytes(*(uint32_t*)&val, dst);
-}
-
-void DataPacket::convertUInt32ToBytes(uint32_t val, unsigned char* dst)
-{
-    dst[0] = (val >> 24) & 0xFF;
-    dst[1] = (val >> 16) & 0xFF;
-    dst[2] = (val >> 8) & 0xFF;
-    dst[3] = val & 0xFF;
-}
-
-void DataPacket::convertInt64ToBytes(int64_t val, unsigned char* dst)
-{
-    convertUInt64ToBytes(*(uint64_t*)&val, dst);
-}
-
-void DataPacket::convertUInt64ToBytes(uint64_t val, unsigned char* dst)
-{
-    dst[0] = (val >> 56) & 0xFF;
-    dst[1] = (val >> 48) & 0xFF;
-    dst[2] = (val >> 40) & 0xFF;
-    dst[3] = (val >> 32) & 0xFF;
-    dst[4] = (val >> 24) & 0xFF;
-    dst[5] = (val >> 16) & 0xFF;
-    dst[6] = (val >> 8) & 0xFF;
-    dst[7] = val & 0xFF;
-}
-
-bool DataPacket::readInt32(int32_t *out)
-{
-    return readUInt32((uint32_t*)out);
-}
-bool DataPacket::readUInt32(uint32_t *out)
-{
-    if(offset + 4 > privateData->data.size())
-        return false;
-
-    *out = convertToUInt32((unsigned char*)&privateData->data[offset]);
-    offset += 4;
-    return true;
-}
-
-bool DataPacket::readInt64(int64_t *out)
-{
-    return readUInt64((uint64_t*)out);
-}
-
-bool DataPacket::readUInt64(uint64_t *out)
-{
-    if(offset + 8 > privateData->data.size())
-        return false;
-
-    *out = convertToUInt64((unsigned char*)&privateData->data[offset]);
-    offset += 8;
-    return true;
-}
-
-void DataPacket::putInt32(int32_t val)
-{
-    putUInt32(*(uint32_t*)&val);
-}
-void DataPacket::putUInt32(uint32_t val)
-{
-    unsigned char buf[4];
-    convertUInt32ToBytes(val, buf);
-    putNBytes(buf, 4);
-}
-void DataPacket::putInt64(int64_t val)
-{
-    putUInt64(*(uint64_t*)&val);
-}
-void DataPacket::putUInt64(uint64_t val)
-{
-    unsigned char buf[8];
-    convertUInt64ToBytes(val, buf);
-    putNBytes(buf, 8);
-}
-
-void DataPacket::putNBytes(const unsigned char* buf, int N)
-{
-    int start = privateData->data.size();
-    privateData->data.resize(start+N);
-    for(int i = 0; i < N; i++)
-        privateData->data[start+i] = buf[i];
-}
-
-void DataPacket::putNBytes(const char* buf, int N)
-{
-    putNBytes(reinterpret_cast<const unsigned char *>(buf), N);
-}
-
-int DataPacket::size()
-{
-    return privateData->data.size();
-}
-
-const unsigned char *DataPacket::getRawPtr()
-{
-    return &privateData->data[0];
 }
