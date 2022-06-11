@@ -2,7 +2,7 @@ Source: bufferedsocket
 Section: devel
 Priority: optional
 Maintainer: delmotte arnaud <delfare1-randomprototypes@yahoo.com>
-Build-Depends: debhelper-compat (= 12), cmake, build-essential
+Build-Depends: cmake, build-essential
 Standards-Version: 4.4.1
 Homepage: https://github.com/RandomPrototypes/BufferedSocket
 
