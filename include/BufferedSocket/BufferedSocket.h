@@ -37,6 +37,8 @@ public:
     virtual bool sendUInt64(uint64_t val) = 0;
 
     //virtual std::vector<char> readUntilStr(const char *str, int length);
+    
+    virtual void requestStopRead() = 0;//stop a blocked recv, only works if select_mode is selected
 
     virtual void closeSockAndThrowError(const char *errorMsg) = 0;
 
@@ -48,11 +50,11 @@ extern "C"
 	BUFSOCK_EXPORTS void BufferedSocketStartup();
 	BUFSOCK_EXPORTS void BufferedSocketCleanup();
 	
-	BUFSOCK_EXPORTS BufferedSocket *createBufferedSocketRawPtr();
+	BUFSOCK_EXPORTS BufferedSocket *createBufferedSocketRawPtr(bool select_mode = true);
 	BUFSOCK_EXPORTS void deleteBufferedSocketRawPtr(BufferedSocket *bufSock);
 }
 
-inline std::shared_ptr<BufferedSocket> createBufferedSocket()
+inline std::shared_ptr<BufferedSocket> createBufferedSocket(bool select_mode = true)
 {
-	return std::shared_ptr<BufferedSocket>(createBufferedSocketRawPtr(), deleteBufferedSocketRawPtr);
+	return std::shared_ptr<BufferedSocket>(createBufferedSocketRawPtr(select_mode), deleteBufferedSocketRawPtr);
 }

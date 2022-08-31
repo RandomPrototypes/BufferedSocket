@@ -27,7 +27,7 @@ WSADATA wsaData;
 class BufferedSocketImpl : public BufferedSocket
 {
 public:
-    BufferedSocketImpl();
+    BufferedSocketImpl(bool select_mode);
     virtual ~BufferedSocketImpl();
 
     virtual void setBufferSize(int size);
@@ -56,6 +56,8 @@ public:
     virtual bool sendInt64(int64_t val);
     virtual bool sendUInt64(uint64_t val);
 
+    virtual void requestStopRead();
+
     //virtual std::vector<char> readUntilStr(const char *str, int length);
 
     virtual void closeSockAndThrowError(const char *errorMsg);
@@ -63,11 +65,17 @@ public:
     virtual void onError(const char *errorMsg);
 private:
     void removeAlreadyReadData();
+
+    int interruptable_recv(char *outputBuf, int outputBufSize);
     
     int bufferSize;
     int bufferFilledSize;
     int bufferStartPos;
     char *buffer;
+
+    bool select_mode;
+    fd_set read_fd_set;
+    volatile bool stopReadRequested;
 
     #if defined(USE_WINDOWS_SOCK)
         SOCKET sock;
@@ -98,9 +106,9 @@ extern "C"
 		}
 	}
 	
-	BufferedSocket *createBufferedSocketRawPtr()
+	BufferedSocket *createBufferedSocketRawPtr(bool select_mode)
 	{
-		return new BufferedSocketImpl();
+		return new BufferedSocketImpl(select_mode);
 	}
 	
 	void deleteBufferedSocketRawPtr(BufferedSocket *bufSock)
@@ -113,9 +121,11 @@ BufferedSocket::~BufferedSocket()
 {
 }
 
-BufferedSocketImpl::BufferedSocketImpl()
+BufferedSocketImpl::BufferedSocketImpl(bool select_mode)
 {
 	BufferedSocketStartup();
+    this->select_mode = select_mode;
+    stopReadRequested = false;
     buffer = NULL;
     setBufferSize(8*1024);
 }
@@ -162,6 +172,7 @@ void BufferedSocketImpl::closeSockAndThrowError(const char *errorMsg)
 
 bool BufferedSocketImpl::connect(const char *address, int port)
 {
+    stopReadRequested = false;
     #if defined(USE_WINDOWS_SOCK)
     sock=socket(PF_INET,SOCK_STREAM,IPPROTO_TCP);
     sockaddr_in sockAddr;
@@ -211,21 +222,50 @@ bool BufferedSocketImpl::isConnected() const
     return sock >= 0;
 }
 
+void BufferedSocketImpl::requestStopRead()
+{
+    stopReadRequested = true;
+}
+
+int BufferedSocketImpl::interruptable_recv(char *outputBuf, int outputBufSize)
+{
+    if(select_mode) {
+        while(!stopReadRequested) {
+            timeval timeout;
+            timeout.tv_sec = 1;
+            timeout.tv_usec = 0;
+            FD_ZERO(&read_fd_set);
+            FD_SET(sock, &read_fd_set);
+            int ret = select(0, &read_fd_set, NULL, NULL, &timeout);
+            if(ret < 0) {
+                return ret;
+            } else if(ret == 0) {
+                continue;
+            } else if (FD_ISSET(sock, &read_fd_set)) {
+                return recv(sock, outputBuf, outputBufSize, 0);
+            }
+        }
+        return 0;
+    } else {
+        return recv(sock, outputBuf, outputBufSize, 0);
+    }
+}
+
 int BufferedSocketImpl::readData(char *outputBuf, int outputBufSize)
 {
     if(bufferFilledSize == 0)
     {
         if(outputBufSize > bufferSize)
         {
-            int sizeRead = recv(sock, outputBuf, outputBufSize, 0);
-            if(sizeRead <= 0)
+            int sizeRead = interruptable_recv(outputBuf, outputBufSize);
+            if(sizeRead < 0 || (sizeRead == 0 && !stopReadRequested))
                 closeSockAndThrowError("recv() failed or connection closed prematurely");
             return sizeRead;
         }
         else 
         {
-            int sizeRead = recv(sock, buffer, bufferSize, 0);
-            if(sizeRead <= 0)
+            int sizeRead = interruptable_recv(buffer, bufferSize);
+            if(sizeRead < 0 || (sizeRead == 0 && !stopReadRequested))
             {
                 closeSockAndThrowError("recv() failed or connection closed prematurely");
                 return sizeRead;
@@ -345,7 +385,7 @@ int BufferedSocketImpl::sendNBytes(const char *buffer, int N)
             len = 10240;
         int sizeSent = send(sock, buffer + total, len, 0);
         if(sizeSent <= 0){
-            closeSockAndThrowError("recv() failed or connection closed prematurely");
+            closeSockAndThrowError("send() failed or connection closed prematurely");
             return sizeSent;
         }
         total += len;
