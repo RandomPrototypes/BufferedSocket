@@ -17,6 +17,9 @@
     #include <arpa/inet.h>
     #include <netdb.h>
     #include <unistd.h>
+    #ifdef USE_POLL_INSTEAD_OF_SELECT
+        #include <sys/poll.h>
+    #endif
 #endif
 
 bool isBufferedSocketInitialized = false;
