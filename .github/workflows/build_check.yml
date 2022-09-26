@@ -36,7 +36,7 @@ jobs:
     - name: Test build with poll option
       if: runner.os != 'Windows'
       run: |
-        cmake -B ${{github.workspace}}/build -DUSE_POLL_INSTEAD_OF_SELECT -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        cmake -B ${{github.workspace}}/build -DUSE_POLL_INSTEAD_OF_SELECT=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
