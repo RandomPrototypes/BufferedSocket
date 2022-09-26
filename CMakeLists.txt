@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_DEBUG_POSTFIX "d")
 
+option(USE_POLL_INSTEAD_OF_SELECT "Use poll instead of select" OFF)
+
 set(LIB_SRC
 	src/BufferedSocket.cpp
 	src/DataPacket.cpp
@@ -21,6 +23,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_library(BufferedSocket SHARED ${LIB_SRC} ${LIB_INCLUDE})
 target_compile_definitions(BufferedSocket PRIVATE "BUFFEREDSOCKET_EXPORTS")
 set_target_properties(BufferedSocket PROPERTIES VERSION ${PROJECT_VERSION})
+
+if(USE_POLL_INSTEAD_OF_SELECT)
+	target_compile_definitions(BufferedSocket PRIVATE USE_POLL_INSTEAD_OF_SELECT)
+endif()
 
 if(WIN32)
 	target_link_libraries(BufferedSocket PRIVATE ws2_32)

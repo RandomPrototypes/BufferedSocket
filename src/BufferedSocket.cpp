@@ -231,19 +231,33 @@ int BufferedSocketImpl::interruptable_recv(char *outputBuf, int outputBufSize)
 {
     if(select_mode) {
         while(!stopReadRequested) {
-            timeval timeout;
-            timeout.tv_sec = 1;
-            timeout.tv_usec = 0;
-            FD_ZERO(&read_fd_set);
-            FD_SET(sock, &read_fd_set);
-            int ret = select(0, &read_fd_set, NULL, NULL, &timeout);
-            if(ret < 0) {
-                return ret;
-            } else if(ret == 0) {
-                continue;
-            } else if (FD_ISSET(sock, &read_fd_set)) {
-                return recv(sock, outputBuf, outputBufSize, 0);
-            }
+            #ifdef USE_POLL_INSTEAD_OF_SELECT
+                pollfd pfd;
+                pfd.fd = sock;
+                pfd.events = POLLIN;
+                int ret = poll(&pfd, 1, 1000);
+                if(ret < 0) {
+                    return ret;
+                } else if(ret == 0) {
+                    continue;
+                } else if(pfd.revents & POLLIN) {
+                    return recv(sock, outputBuf, outputBufSize, 0);
+                }
+            #else
+                timeval timeout;
+                timeout.tv_sec = 1;
+                timeout.tv_usec = 0;
+                FD_ZERO(&read_fd_set);
+                FD_SET(sock, &read_fd_set);
+                int ret = select(sock+1, &read_fd_set, NULL, NULL, &timeout);
+                if(ret < 0) {
+                    return ret;
+                } else if(ret == 0) {
+                    continue;
+                } else if (FD_ISSET(sock, &read_fd_set)) {
+                    return recv(sock, outputBuf, outputBufSize, 0);
+                }
+            #endif
         }
         return 0;
     } else {
