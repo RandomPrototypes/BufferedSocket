@@ -127,6 +127,7 @@ BufferedSocket::~BufferedSocket()
 BufferedSocketImpl::BufferedSocketImpl(bool select_mode)
 {
 	BufferedSocketStartup();
+    sock = -1;
     this->select_mode = select_mode;
     stopReadRequested = false;
     buffer = NULL;
@@ -135,6 +136,8 @@ BufferedSocketImpl::BufferedSocketImpl(bool select_mode)
 
 BufferedSocketImpl::~BufferedSocketImpl()
 {
+    if(isConnected())
+        disconnect();
     delete [] buffer;
 }
 
